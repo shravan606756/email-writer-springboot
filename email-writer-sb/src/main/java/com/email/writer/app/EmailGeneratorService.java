@@ -9,81 +9,73 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.Map;
 
 @Service
-public class EmailGeneratorService
-{
+public class EmailGeneratorService {
+
     private final WebClient webClient;
+
     @Value("${gemini.api.url}")
-    private String geminiApiUrl;
+    private String apiUrl;
 
     @Value("${gemini.api.key}")
-    private String geminiApiKey;
+    private String apiKey;
 
-    public EmailGeneratorService(WebClient.Builder webClient) {
-        this.webClient = webClient.build();
+    public EmailGeneratorService(WebClient.Builder builder) {
+        this.webClient = builder.build();
     }
 
-    public String generateEmailReply(EmailRequest emailRequest)
-    {
-        //BUILDING PROMPT
+    public String generateEmailReply(EmailRequest emailRequest) {
+
         String prompt = buildPrompt(emailRequest);
 
-        //CRAFTING REQUEST
-        Map<String , Object> requestBody = Map.of(
-                "contents" , new Object[]{
-                        Map.of("parts" , new Object[]{
-                            Map.of("text" , prompt)
-                })
-             }
+        Map<String, Object> body = Map.of(
+                "contents", new Object[]{
+                        Map.of(
+                                "parts", new Object[]{
+                                        Map.of("text", prompt)
+                                }
+                        )
+                }
         );
 
-        //DO REQUEST GET REQUEST
-
         String response = webClient.post()
-                .uri(geminiApiUrl + geminiApiKey)
-                .header("Content-Type","application/json")
-                .bodyValue(requestBody)
+                .uri(apiUrl)
+                .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
+                .bodyValue(body)
                 .retrieve()
                 .bodyToMono(String.class)
                 .block();
 
-        //EXTRACT AND RETURN RESPONSE
-
-        return extractResponseContent(response);
-
-
+        return extractText(response);
     }
 
-    private String extractResponseContent(String response)
-    {
-        try
-        {
+    private String extractText(String response) {
+        try {
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(response);
+            JsonNode root = mapper.readTree(response);
 
-            return rootNode.path("candidates")
+            return root.path("candidates")
                     .get(0)
                     .path("content")
                     .path("parts")
                     .get(0)
                     .path("text")
                     .asText();
-        }
 
-        catch (Exception e)
-        {
-            return "Error processing request: " + e.getMessage();
+        } catch (Exception e) {
+            return "Failed to parse response";
         }
     }
 
-    private String buildPrompt(EmailRequest emailRequest)
-    {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate a professional email reply for the following email content . And don't generate a subject line ");
-        if(emailRequest.getTone()!=null && !emailRequest.getTone().isEmpty())
-        {
-            prompt.append("Use a ").append(emailRequest.getTone()).append(" tone.");
+    private String buildPrompt(EmailRequest emailRequest) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Generate a professional email reply. Do not include a subject line.");
+
+        if (emailRequest.getTone() != null && !emailRequest.getTone().isBlank()) {
+            sb.append(" Use a ").append(emailRequest.getTone()).append(" tone.");
         }
-        prompt.append("\nOriginal email : \n").append(emailRequest.getEmailContent());
-        return prompt.toString();
+
+        sb.append("\n\nEmail:\n").append(emailRequest.getEmailContent());
+        return sb.toString();
     }
 }
