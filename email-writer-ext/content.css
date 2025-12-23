@@ -1,0 +1,20 @@
+.ai-reply-button {
+  background-color: #1a73e8 !important;
+  color: #fff !important;
+  border-radius: 18px;
+  padding: 0 16px;
+  height: 36px;
+  line-height: 36px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-reply-button:hover {
+  background-color: #1558c0 !important;
+}
+
+.ai-reply-button:active {
+  background-color: #174ea6 !important;
+}
